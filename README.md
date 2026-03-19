@@ -248,6 +248,23 @@ cargo test --test integration_test   # integration tests only
 - SIGINT only — SIGTERM not handled
 - Base64 bodies are decoded but not inspected for PII
 
+## Visual Dashboard
+
+The `display/dashboard.html` page visualises stats from `--output-stats`. To run it locally:
+
+```bash
+cd display && python3 -m http.server 8000
+```
+
+Then open http://localhost:8000/dashboard.html in your browser. Drop a `stats.json` file or click "load demo data".
+
+### Deploy to Vercel
+
+1. Import the repo in [Vercel](https://vercel.com) (or connect your GitHub).
+2. In **Project Settings → General → Root Directory**, set `display` (or `traffic-replayer/display` if deploying from a monorepo root).
+3. Leave **Build Command** and **Output Directory** empty (static site).
+4. Deploy. The root URL (`/`) will serve the dashboard.
+
 ## Future Improvements
 
 - `--retry N` with exponential backoff

@@ -595,10 +595,6 @@
         <span class="tag green">Tokio async</span>
         <span class="tag purple">reqwest</span>
         <span class="tag orange">aws-sdk-s3</span>
-        <span class="tag">hdrhistogram</span>
-        <span class="tag green">governor rate-limiter</span>
-        <span class="tag purple">Open/Closed Principle</span>
-        <span class="tag">75 / 75 tests</span>
       </div>
       <a
         href="#"
@@ -650,30 +646,7 @@
             only up to the configured limit — no unbounded task spawning.
           </p>
         </div>
-        <div class="card">
-          <h3>Rich Statistics</h3>
-          <p>
-            p50 / p95 / p99 latency via <code>hdrhistogram</code>, status
-            distribution, error categories, and throughput — all exportable as
-            JSON.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Smart Filtering</h3>
-          <p>
-            Filter by HTTP method, path prefix, or original status code. All
-            filters are repeatable with OR logic and AND logic between types.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Graceful Shutdown</h3>
-          <p>
-            SIGINT triggers a <code>CancellationToken</code>. In-flight requests
-            drain up to <code>--drain-timeout-ms</code> before partial stats are
-            printed.
-          </p>
-        </div>
-      </div>
+        
     </section>
 
     <!-- ═══════════════════════ STATS DASHBOARD ═══════════════════════ -->
