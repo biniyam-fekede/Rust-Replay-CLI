@@ -1,0 +1,39 @@
+[package]
+name = "traffic-replayer"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "traffic_replayer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "traffic-replayer"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "gzip", "rustls-tls"] }
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+aws-sdk-s3 = { version = "1", features = ["rt-tokio"] }
+aws-config = { version = "1", features = ["behavior-version-latest"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1"
+bytes = "1"
+futures = "0.3"
+tokio-stream = { version = "0.1", features = ["io-util"] }
+governor = "0.6"
+hdrhistogram = "7"
+indexmap = { version = "2", features = ["serde"] }
+tokio-util = { version = "0.7", features = ["compat", "rt"] }
+anyhow = "1"
+base64 = "0.22"
+url = "2"
+
+[dev-dependencies]
+mockito = "1"
+tokio-test = "0.4"
+tempfile = "3"
