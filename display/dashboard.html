@@ -1,573 +1,2260 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>traffic-replayer — Visual Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-:root{
-  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--border:#30363d;
-  --text:#e6edf3;--muted:#8b949e;--blue:#58a6ff;--green:#3fb950;
-  --purple:#bc8cff;--orange:#f0883e;--red:#f85149;--yellow:#d29922;
-  --teal:#39d353;--grad:linear-gradient(135deg,#1f6feb 0%,#bc8cff 100%);
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6}
-
-/* ── NAV ── */
-nav{position:sticky;top:0;z-index:100;background:rgba(13,17,23,.92);backdrop-filter:blur(12px);
-  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:2rem;padding:.75rem 2rem}
-nav .logo{font-weight:700;font-size:1.1rem;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-nav a{color:var(--muted);text-decoration:none;font-size:.9rem;transition:color .2s}
-nav a:hover{color:var(--text)}
-.badge{background:var(--surface2);border:1px solid var(--border);border-radius:999px;
-  padding:.15rem .6rem;font-size:.75rem;color:var(--muted);margin-left:auto}
-
-/* ── HERO ── */
-.hero{padding:5rem 2rem 3rem;text-align:center;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(31,111,235,.18),transparent);pointer-events:none}
-.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;margin-bottom:1rem;
-  background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{color:var(--muted);max-width:640px;margin:0 auto 2rem;font-size:1.1rem}
-.tags{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-bottom:2rem}
-.tag{background:var(--surface2);border:1px solid var(--border);border-radius:999px;
-  padding:.3rem .9rem;font-size:.8rem;color:var(--blue)}
-.tag.green{color:var(--green)} .tag.purple{color:var(--purple)} .tag.orange{color:var(--orange)}
-.btn-github{display:inline-flex;align-items:center;gap:.5rem;background:var(--surface2);border:1px solid var(--border);
-  border-radius:8px;padding:.5rem 1rem;font-size:.9rem;color:var(--text);text-decoration:none;margin-top:.5rem;
-  transition:border-color .2s,background .2s,color .2s}
-.btn-github:hover{border-color:var(--blue);background:rgba(88,166,255,.1);color:var(--blue)}
-
-/* ── SECTIONS ── */
-section{padding:4rem 2rem;max-width:1200px;margin:0 auto}
-.section-title{font-size:1.6rem;font-weight:700;margin-bottom:.5rem;display:flex;align-items:center;gap:.75rem}
-.section-title .icon{font-size:1.4rem}
-.section-sub{color:var(--muted);margin-bottom:2.5rem;font-size:.95rem}
-.divider{border:none;border-top:1px solid var(--border);margin:2rem 0}
-
-/* ── CARDS ── */
-.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.25rem;margin-bottom:2rem}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;
-  transition:border-color .2s,transform .2s}
-.card:hover{border-color:var(--blue);transform:translateY(-2px)}
-.card h3{font-size:1rem;font-weight:600;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
-.card p{color:var(--muted);font-size:.875rem}
-
-/* ── STAT CARDS ── */
-.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center}
-.stat-card .val{font-size:2rem;font-weight:800;line-height:1}
-.stat-card .lbl{color:var(--muted);font-size:.8rem;margin-top:.4rem}
-.stat-card.blue .val{color:var(--blue)} .stat-card.green .val{color:var(--green)}
-.stat-card.red .val{color:var(--red)} .stat-card.purple .val{color:var(--purple)}
-.stat-card.orange .val{color:var(--orange)} .stat-card.yellow .val{color:var(--yellow)}
-
-/* ── CHARTS ── */
-.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:1.5rem;margin-bottom:2rem}
-.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
-.chart-box h4{font-size:.95rem;font-weight:600;margin-bottom:1rem;color:var(--muted)}
-.chart-box canvas{max-height:240px}
-
-/* ── FILE DROP ── */
-.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:3rem;text-align:center;
-  cursor:pointer;transition:border-color .2s,background .2s;margin-bottom:2rem}
-.drop-zone:hover,.drop-zone.drag{border-color:var(--blue);background:rgba(88,166,255,.05)}
-.drop-zone .icon{font-size:2.5rem;margin-bottom:.75rem}
-.drop-zone p{color:var(--muted);font-size:.9rem}
-.drop-zone strong{color:var(--blue)}
-#file-input{display:none}
-
-/* ── ARCHITECTURE SVG ── */
-.arch-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:2rem;overflow-x:auto}
-.arch-wrap svg{width:100%;height:auto;min-width:700px}
-
-/* ── PIPELINE FLOW ── */
-.pipeline{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:.5rem;margin-bottom:1.5rem}
-.pipe-step{flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);
-  border-radius:0;padding:1rem .75rem;text-align:center;position:relative;transition:background .2s}
-.pipe-step:first-child{border-radius:12px 0 0 12px}
-.pipe-step:last-child{border-radius:0 12px 12px 0}
-.pipe-step:hover{background:var(--surface2)}
-.pipe-step .ps-icon{font-size:1.4rem;margin-bottom:.4rem}
-.pipe-step .ps-label{font-size:.75rem;font-weight:600;color:var(--text)}
-.pipe-step .ps-sub{font-size:.65rem;color:var(--muted);margin-top:.2rem}
-.pipe-arrow{width:28px;min-width:28px;display:flex;align-items:center;justify-content:center;
-  color:var(--muted);font-size:1.2rem;flex-shrink:0}
-
-/* ── PATTERN CARDS ── */
-.pattern-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.25rem}
-.pattern-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
-  padding:1.5rem;position:relative;overflow:hidden}
-.pattern-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.pattern-card.factory::before{background:linear-gradient(90deg,var(--blue),var(--purple))}
-.pattern-card.strategy::before{background:linear-gradient(90deg,var(--green),var(--teal))}
-.pattern-card.chain::before{background:linear-gradient(90deg,var(--orange),var(--yellow))}
-.pattern-card.facade::before{background:linear-gradient(90deg,var(--purple),var(--red))}
-.pattern-card h3{font-size:1rem;font-weight:700;margin-bottom:.25rem}
-.pattern-card .pat-name{font-size:.75rem;margin-bottom:.75rem;font-weight:500;opacity:.7}
-.pattern-card.factory .pat-name{color:var(--blue)}
-.pattern-card.strategy .pat-name{color:var(--green)}
-.pattern-card.chain .pat-name{color:var(--orange)}
-.pattern-card.facade .pat-name{color:var(--purple)}
-.pattern-card p{color:var(--muted);font-size:.85rem;margin-bottom:1rem}
-.pat-items{display:flex;flex-direction:column;gap:.4rem}
-.pat-item{background:var(--surface2);border-radius:6px;padding:.4rem .75rem;font-size:.8rem;
-  display:flex;align-items:center;gap:.5rem}
-.pat-item .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.factory .dot{background:var(--blue)} .strategy .dot{background:var(--green)}
-.chain .dot{background:var(--orange)} .facade .dot{background:var(--purple)}
-
-/* ── CODE BLOCK ── */
-pre{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-  padding:1.25rem;overflow-x:auto;font-size:.82rem;line-height:1.7;margin:1rem 0}
-.kw{color:var(--purple)} .ty{color:var(--blue)} .str{color:var(--orange)}
-.cm{color:var(--muted)} .fn{color:var(--teal)}
-
-/* ── EXTENSION TABLE ── */
-table{width:100%;border-collapse:collapse;font-size:.875rem}
-th{text-align:left;padding:.75rem 1rem;background:var(--surface2);color:var(--muted);
-  font-weight:600;border-bottom:1px solid var(--border)}
-td{padding:.75rem 1rem;border-bottom:1px solid var(--border);vertical-align:top}
-td:first-child{color:var(--blue);font-family:monospace;font-size:.82rem}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:var(--surface2)}
-
-/* ── TOAST ── */
-.toast{position:fixed;bottom:2rem;right:2rem;background:var(--surface2);border:1px solid var(--border);
-  border-radius:10px;padding:.75rem 1.25rem;font-size:.875rem;opacity:0;transform:translateY(8px);
-  transition:all .3s;pointer-events:none;z-index:200}
-.toast.show{opacity:1;transform:translateY(0)}
-.toast.ok{border-color:var(--green);color:var(--green)}
-.toast.err{border-color:var(--red);color:var(--red)}
-
-/* ── UTIL ── */
-.mt{margin-top:1rem} .text-muted{color:var(--muted)} .mono{font-family:monospace}
-</style>
-</head>
-<body>
-
-<!-- NAV -->
-<nav>
-  <span class="logo">⚡ traffic-replayer</span>
-  <a href="#overview">Overview</a>
-  <a href="#stats">Stats</a>
-  <a href="#architecture">Architecture</a>
-  <a href="#pipeline">Pipeline</a>
-  <a href="#patterns">Patterns</a>
-  <a href="#cli">CLI</a>
-  <span class="badge">v0.1.0 · Rust stable</span>
-</nav>
-
-<!-- HERO -->
-<div class="hero">
-  <h1>traffic-replayer</h1>
-  <p>Production-grade Rust CLI that replays HTTP traffic from NDJSON logs — with PII sanitization, concurrent dispatch, S3 streaming, and rich latency statistics.</p>
-  <div class="tags">
-    <span class="tag">🦀 Rust stable</span>
-    <span class="tag green">Tokio async</span>
-    <span class="tag purple">reqwest</span>
-    <span class="tag orange">aws-sdk-s3</span>
-    <span class="tag">hdrhistogram</span>
-    <span class="tag green">governor rate-limiter</span>
-    <span class="tag purple">Open/Closed Principle</span>
-    <span class="tag">75 / 75 tests ✅</span>
-  </div>
-  <a href="https://github.com/your-username/traffic-replayer" target="_blank" rel="noopener noreferrer" class="btn-github"><svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> View on GitHub</a>
-</div>
-
-<!-- ═══════════════════════ OVERVIEW ═══════════════════════ -->
-<section id="overview">
-  <div class="section-title"><span class="icon">🔍</span> Project Overview</div>
-  <div class="section-sub">What traffic-replayer does and why it matters</div>
-  <div class="card-grid">
-    <div class="card"><h3>📂 Streaming Input</h3><p>Reads NDJSON line-by-line from a local file or S3 object. Never buffers the full dataset — constant memory regardless of file size.</p></div>
-    <div class="card"><h3>🔒 PII Sanitization</h3><p>Strips sensitive headers (<code>Authorization</code>, <code>Cookie</code>), redacts query params, and recursively redacts JSON body fields before any network call.</p></div>
-    <div class="card"><h3>⚡ Concurrent Replay</h3><p>Semaphore-bounded concurrency (default 50). Tokio tasks are spawned only up to the configured limit — no unbounded task spawning.</p></div>
-    <div class="card"><h3>📊 Rich Statistics</h3><p>p50 / p95 / p99 latency via <code>hdrhistogram</code>, status distribution, error categories, and throughput — all exportable as JSON.</p></div>
-    <div class="card"><h3>🎛️ Smart Filtering</h3><p>Filter by HTTP method, path prefix, or original status code. All filters are repeatable with OR logic and AND logic between types.</p></div>
-    <div class="card"><h3>🛑 Graceful Shutdown</h3><p>SIGINT triggers a <code>CancellationToken</code>. In-flight requests drain up to <code>--drain-timeout-ms</code> before partial stats are printed.</p></div>
-  </div>
-</section>
-
-<!-- ═══════════════════════ STATS DASHBOARD ═══════════════════════ -->
-<section id="stats">
-  <div class="section-title"><span class="icon">📈</span> Live Stats Dashboard</div>
-  <div class="section-sub">Drop a <code>stats.json</code> file produced by <code>--output-stats</code> to visualise your run, or click to load a demo.</div>
-
-  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <div class="icon">📁</div>
-    <p>Drop <strong>stats.json</strong> here, or <strong>click to browse</strong></p>
-    <p style="margin-top:.5rem;font-size:.8rem">— or — <a href="#" onclick="loadDemo();return false" style="color:var(--blue)">load demo data</a></p>
-  </div>
-  <input type="file" id="file-input" accept=".json,application/json"/>
-
-  <div id="dashboard" style="display:none">
-    <div class="stat-cards" id="stat-cards"></div>
-    <div class="charts-grid">
-      <div class="chart-box"><h4>🕒 Latency Percentiles (µs)</h4><canvas id="chart-latency"></canvas></div>
-      <div class="chart-box"><h4>🔢 Status Code Distribution</h4><canvas id="chart-status"></canvas></div>
-      <div class="chart-box"><h4>❌ Error Categories</h4><canvas id="chart-errors"></canvas></div>
-      <div class="chart-box"><h4>✅ Request Outcomes</h4><canvas id="chart-outcomes"></canvas></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════════ ARCHITECTURE ═══════════════════════ -->
-<section id="architecture">
-  <div class="section-title"><span class="icon">🏗️</span> Architecture Diagram</div>
-  <div class="section-sub">Module layout with data-flow arrows and design-pattern annotations</div>
-  <div class="arch-wrap">
-    <svg viewBox="0 0 860 600" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',system-ui,sans-serif">
-      <defs>
-        <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
-        </marker>
-        <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L8,3 z" fill="#3fb950"/>
-        </marker>
-        <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/>
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      </defs>
-
-      <!-- Background grid -->
-      <rect width="860" height="600" fill="#161b22" rx="12"/>
-      <rect x="1" y="1" width="858" height="598" fill="none" stroke="#30363d" stroke-width="1" rx="12"/>
-
-      <!-- Section labels -->
-      <text x="20" y="28" fill="#8b949e" font-size="11" font-weight="600">ENTRY</text>
-      <text x="200" y="28" fill="#8b949e" font-size="11" font-weight="600">INPUT LAYER</text>
-      <text x="430" y="28" fill="#8b949e" font-size="11" font-weight="600">PROCESSING LAYER</text>
-      <text x="670" y="28" fill="#8b949e" font-size="11" font-weight="600">OUTPUT LAYER</text>
-
-      <!-- Vertical dividers -->
-      <line x1="170" y1="38" x2="170" y2="580" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
-      <line x1="410" y1="38" x2="410" y2="580" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
-      <line x1="650" y1="38" x2="650" y2="580" stroke="#30363d" stroke-width="1" stroke-dasharray="4,4"/>
-
-      <!-- ── main.rs ── -->
-      <rect x="20" y="50" width="130" height="60" rx="8" fill="#1f6feb" fill-opacity=".15" stroke="#1f6feb" stroke-width="1.5" filter="url(#glow)"/>
-      <text x="85" y="76" fill="#58a6ff" font-size="13" font-weight="700" text-anchor="middle">main.rs</text>
-      <text x="85" y="94" fill="#8b949e" font-size="10" text-anchor="middle">Entry · thin</text>
-
-      <!-- cli.rs + config.rs -->
-      <rect x="20" y="130" width="130" height="50" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1"/>
-      <text x="85" y="151" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">cli.rs</text>
-      <text x="85" y="167" fill="#8b949e" font-size="10" text-anchor="middle">clap args</text>
-
-      <rect x="20" y="195" width="130" height="50" rx="8" fill="#21262d" stroke="#30363d" stroke-width="1"/>
-      <text x="85" y="216" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">config.rs</text>
-      <text x="85" y="232" fill="#8b949e" font-size="10" text-anchor="middle">validated Config</text>
-
-      <!-- ── INPUT LAYER ── -->
-      <!-- SourceFactory -->
-      <rect x="190" y="50" width="200" height="55" rx="8" fill="#bc8cff" fill-opacity=".12" stroke="#bc8cff" stroke-width="1.5"/>
-      <text x="290" y="72" fill="#bc8cff" font-size="12" font-weight="700" text-anchor="middle">SourceFactory</text>
-      <text x="290" y="88" fill="#8b949e" font-size="10" text-anchor="middle">Factory pattern</text>
-
-      <rect x="190" y="120" width="92" height="50" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="236" y="141" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">LocalSource</text>
-      <text x="236" y="156" fill="#8b949e" font-size="10" text-anchor="middle">tokio::fs</text>
-
-      <rect x="298" y="120" width="92" height="50" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="344" y="141" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">S3Source</text>
-      <text x="344" y="156" fill="#8b949e" font-size="10" text-anchor="middle">aws-sdk-s3</text>
-
-      <!-- LineStream arrow down -->
-      <line x1="290" y1="175" x2="290" y2="210" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
-      <rect x="210" y="210" width="160" height="40" rx="8" fill="#1f6feb" fill-opacity=".08" stroke="#1f6feb" stroke-width="1"/>
-      <text x="290" y="226" fill="#58a6ff" font-size="11" font-weight="600" text-anchor="middle">LineStream</text>
-      <text x="290" y="240" fill="#8b949e" font-size="9" text-anchor="middle">Pin&lt;Box&lt;dyn Stream&gt;&gt;</text>
-
-      <!-- ── PROCESSING LAYER ── -->
-      <!-- FilterChain -->
-      <rect x="430" y="50" width="200" height="55" rx="8" fill="#f0883e" fill-opacity=".12" stroke="#f0883e" stroke-width="1.5"/>
-      <text x="530" y="72" fill="#f0883e" font-size="12" font-weight="700" text-anchor="middle">FilterChain</text>
-      <text x="530" y="88" fill="#8b949e" font-size="10" text-anchor="middle">Chain of Responsibility</text>
-
-      <rect x="430" y="120" width="58" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="459" y="138" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">Method</text>
-      <text x="459" y="152" fill="#8b949e" font-size="9" text-anchor="middle">Filter</text>
-
-      <rect x="496" y="120" width="62" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="527" y="138" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">PathPrefix</text>
-      <text x="527" y="152" fill="#8b949e" font-size="9" text-anchor="middle">Filter</text>
-
-      <rect x="566" y="120" width="58" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="595" y="138" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">Status</text>
-      <text x="595" y="152" fill="#8b949e" font-size="9" text-anchor="middle">Filter</text>
-
-      <!-- RecordSanitizer -->
-      <rect x="430" y="185" width="200" height="55" rx="8" fill="#3fb950" fill-opacity=".12" stroke="#3fb950" stroke-width="1.5"/>
-      <text x="530" y="207" fill="#3fb950" font-size="12" font-weight="700" text-anchor="middle">RecordSanitizer</text>
-      <text x="530" y="223" fill="#8b949e" font-size="10" text-anchor="middle">Facade + Strategy</text>
-
-      <rect x="430" y="255" width="58" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="459" y="273" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">Header</text>
-      <text x="459" y="287" fill="#8b949e" font-size="9" text-anchor="middle">Sanitizer</text>
-
-      <rect x="496" y="255" width="62" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="527" y="273" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">Query</text>
-      <text x="527" y="287" fill="#8b949e" font-size="9" text-anchor="middle">Sanitizer</text>
-
-      <rect x="566" y="255" width="58" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="595" y="273" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">Body</text>
-      <text x="595" y="287" fill="#8b949e" font-size="9" text-anchor="middle">Sanitizer</text>
-
-      <!-- SenderFactory -->
-      <rect x="430" y="320" width="200" height="55" rx="8" fill="#bc8cff" fill-opacity=".12" stroke="#bc8cff" stroke-width="1.5"/>
-      <text x="530" y="342" fill="#bc8cff" font-size="12" font-weight="700" text-anchor="middle">SenderFactory</text>
-      <text x="530" y="358" fill="#8b949e" font-size="10" text-anchor="middle">Strategy pattern</text>
-
-      <rect x="435" y="390" width="88" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="479" y="408" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">HttpSender</text>
-      <text x="479" y="422" fill="#8b949e" font-size="9" text-anchor="middle">reqwest</text>
-
-      <rect x="537" y="390" width="88" height="45" rx="6" fill="#21262d" stroke="#30363d"/>
-      <text x="581" y="408" fill="#e6edf3" font-size="10" font-weight="600" text-anchor="middle">DryRunSender</text>
-      <text x="581" y="422" fill="#8b949e" font-size="9" text-anchor="middle">no-op</text>
-
-      <!-- Pipeline box -->
-      <rect x="430" y="455" width="200" height="55" rx="8" fill="#d29922" fill-opacity=".12" stroke="#d29922" stroke-width="1.5"/>
-      <text x="530" y="477" fill="#d29922" font-size="12" font-weight="700" text-anchor="middle">pipeline.rs</text>
-      <text x="530" y="493" fill="#8b949e" font-size="10" text-anchor="middle">Semaphore · RateLimiter · SIGINT</text>
-
-      <!-- ── OUTPUT LAYER ── -->
-      <rect x="670" y="50" width="170" height="55" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="755" y="72" fill="#e6edf3" font-size="12" font-weight="700" text-anchor="middle">StatsAccumulator</text>
-      <text x="755" y="88" fill="#8b949e" font-size="10" text-anchor="middle">hdrhistogram · mpsc</text>
-
-      <rect x="670" y="125" width="170" height="50" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="755" y="146" fill="#e6edf3" font-size="12" font-weight="700" text-anchor="middle">AggregatedStats</text>
-      <text x="755" y="161" fill="#8b949e" font-size="10" text-anchor="middle">p50 / p95 / p99</text>
-
-      <rect x="670" y="195" width="170" height="50" rx="8" fill="#3fb950" fill-opacity=".1" stroke="#3fb950" stroke-width="1"/>
-      <text x="755" y="216" fill="#3fb950" font-size="12" font-weight="700" text-anchor="middle">stdout summary</text>
-      <text x="755" y="231" fill="#8b949e" font-size="10" text-anchor="middle">human-readable</text>
-
-      <rect x="670" y="265" width="170" height="50" rx="8" fill="#1f6feb" fill-opacity=".1" stroke="#1f6feb" stroke-width="1"/>
-      <text x="755" y="286" fill="#58a6ff" font-size="12" font-weight="700" text-anchor="middle">stats.json</text>
-      <text x="755" y="301" fill="#8b949e" font-size="10" text-anchor="middle">--output-stats file</text>
-
-      <!-- error.rs + models.rs at bottom -->
-      <rect x="20" y="290" width="130" height="50" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="85" y="311" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">error.rs</text>
-      <text x="85" y="326" fill="#8b949e" font-size="10" text-anchor="middle">TrafficReplayerError</text>
-
-      <rect x="20" y="355" width="130" height="50" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="85" y="376" fill="#e6edf3" font-size="11" font-weight="600" text-anchor="middle">models.rs</text>
-      <text x="85" y="391" fill="#8b949e" font-size="10" text-anchor="middle">ReplayRecord + Outcome</text>
-
-      <!-- ── ARROWS ── -->
-      <!-- main → SourceFactory -->
-      <line x1="150" y1="80" x2="188" y2="78" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
-      <!-- main → FilterChain -->
-      <path d="M85,110 Q85,42 428,72" fill="none" stroke="#f0883e" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr)"/>
-      <!-- main → SenderFactory -->
-      <path d="M85,110 Q85,52 428,347" fill="none" stroke="#bc8cff" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr)"/>
-
-      <!-- SourceFactory → LocalSource/S3 -->
-      <line x1="236" y1="105" x2="236" y2="118" stroke="#8b949e" stroke-width="1" marker-end="url(#arr)"/>
-      <line x1="344" y1="105" x2="344" y2="118" stroke="#8b949e" stroke-width="1" marker-end="url(#arr)"/>
-
-      <!-- LineStream → FilterChain -->
-      <line x1="370" y1="230" x2="428" y2="78" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
-
-      <!-- FilterChain → Filters -->
-      <line x1="459" y1="105" x2="459" y2="118" stroke="#f0883e" stroke-width="1" marker-end="url(#arr)"/>
-      <line x1="527" y1="105" x2="527" y2="118" stroke="#f0883e" stroke-width="1" marker-end="url(#arr)"/>
-      <line x1="595" y1="105" x2="595" y2="118" stroke="#f0883e" stroke-width="1" marker-end="url(#arr)"/>
-
-      <!-- FilterChain → RecordSanitizer -->
-      <line x1="530" y1="165" x2="530" y2="183" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr2)"/>
-
-      <!-- RecordSanitizer → Sanitizers -->
-      <line x1="459" y1="240" x2="459" y2="253" stroke="#3fb950" stroke-width="1" marker-end="url(#arr2)"/>
-      <line x1="527" y1="240" x2="527" y2="253" stroke="#3fb950" stroke-width="1" marker-end="url(#arr2)"/>
-      <line x1="595" y1="240" x2="595" y2="253" stroke="#3fb950" stroke-width="1" marker-end="url(#arr2)"/>
-
-      <!-- RecordSanitizer → SenderFactory -->
-      <line x1="530" y1="300" x2="530" y2="318" stroke="#bc8cff" stroke-width="1.5" marker-end="url(#arr)"/>
-
-      <!-- SenderFactory → Senders -->
-      <line x1="479" y1="375" x2="479" y2="388" stroke="#bc8cff" stroke-width="1" marker-end="url(#arr)"/>
-      <line x1="581" y1="375" x2="581" y2="388" stroke="#bc8cff" stroke-width="1" marker-end="url(#arr)"/>
-
-      <!-- Senders → pipeline -->
-      <line x1="530" y1="435" x2="530" y2="453" stroke="#d29922" stroke-width="1.5" marker-end="url(#arr)"/>
-
-      <!-- pipeline → StatsAccumulator -->
-      <line x1="630" y1="480" x2="668" y2="78" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
-
-      <!-- Stats → AggregatedStats -->
-      <line x1="755" y1="105" x2="755" y2="123" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
-      <!-- AggregatedStats → stdout -->
-      <line x1="755" y1="175" x2="755" y2="193" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr2)"/>
-      <!-- AggregatedStats → stats.json -->
-      <line x1="755" y1="245" x2="755" y2="263" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
-
-      <!-- Legend -->
-      <rect x="20" y="525" width="820" height="60" rx="8" fill="#21262d" stroke="#30363d"/>
-      <text x="40" y="548" fill="#8b949e" font-size="11" font-weight="600">LEGEND</text>
-      <line x1="100" y1="544" x2="130" y2="544" stroke="#bc8cff" stroke-width="2"/>
-      <text x="135" y="548" fill="#8b949e" font-size="10">Factory</text>
-      <line x1="190" y1="544" x2="220" y2="544" stroke="#f0883e" stroke-width="2"/>
-      <text x="225" y="548" fill="#8b949e" font-size="10">Chain of Responsibility</text>
-      <line x1="360" y1="544" x2="390" y2="544" stroke="#3fb950" stroke-width="2"/>
-      <text x="395" y="548" fill="#8b949e" font-size="10">Strategy / Facade</text>
-      <line x1="490" y1="544" x2="520" y2="544" stroke="#d29922" stroke-width="2"/>
-      <text x="525" y="548" fill="#8b949e" font-size="10">Pipeline orchestration</text>
-      <line x1="660" y1="544" x2="690" y2="544" stroke="#58a6ff" stroke-width="2"/>
-      <text x="695" y="548" fill="#8b949e" font-size="10">Data flow</text>
-
-      <text x="40" y="574" fill="#8b949e" font-size="10">OCP = every border box is a trait-based extension point. Add implementations without modifying existing code.</text>
-    </svg>
-  </div>
-</section>
-
-<!-- ═══════════════════════ PIPELINE FLOW ═══════════════════════ -->
-<section id="pipeline">
-  <div class="section-title"><span class="icon">🔄</span> Request Pipeline Flow</div>
-  <div class="section-sub">Every record passes through this sequence — from raw bytes to recorded outcome</div>
-  <div class="pipeline">
-    <div class="pipe-step"><div class="ps-icon">📄</div><div class="ps-label">Read Line</div><div class="ps-sub">LineStream</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">🔍</div><div class="ps-label">Parse JSON</div><div class="ps-sub">ReplayRecord</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">🎛️</div><div class="ps-label">Filter</div><div class="ps-sub">FilterChain</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">🔒</div><div class="ps-label">Sanitize</div><div class="ps-sub">RecordSanitizer</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">⏱️</div><div class="ps-label">Rate Limit</div><div class="ps-sub">governor</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">🔑</div><div class="ps-label">Acquire Permit</div><div class="ps-sub">Semaphore</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">🚀</div><div class="ps-label">Spawn Task</div><div class="ps-sub">tokio::spawn</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">🌐</div><div class="ps-label">Send Request</div><div class="ps-sub">RequestSender</div></div>
-    <div class="pipe-arrow">→</div>
-    <div class="pipe-step"><div class="ps-icon">📊</div><div class="ps-label">Record Stats</div><div class="ps-sub">mpsc → Acc</div></div>
-  </div>
-
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-top:1rem">
-    <h4 style="font-size:.95rem;font-weight:600;margin-bottom:1rem;color:var(--muted)">Error handling at each stage</h4>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;font-size:.82rem">
-      <div style="background:var(--surface2);border-radius:8px;padding:.75rem"><span style="color:var(--red)">⚠ Parse error</span><br><span style="color:var(--muted)">warn! + parse_errors++ + continue</span></div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.75rem"><span style="color:var(--yellow)">⚠ Filter reject</span><br><span style="color:var(--muted)">filtered_count++ + continue</span></div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.75rem"><span style="color:var(--orange)">⚠ Sanitize error</span><br><span style="color:var(--muted)">warn! + parse_errors++ + continue</span></div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.75rem"><span style="color:var(--red)">⚠ Transport error</span><br><span style="color:var(--muted)">failed++ + error_categories++ + continue</span></div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.75rem"><span style="color:var(--green)">✓ Non-2xx response</span><br><span style="color:var(--muted)">failed++ — exit code stays 0</span></div>
-      <div style="background:var(--surface2);border-radius:8px;padding:.75rem"><span style="color:var(--blue)">ℹ SIGINT</span><br><span style="color:var(--muted)">CancellationToken → drain → exit 2</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- ═══════════════════════ DESIGN PATTERNS ═══════════════════════ -->
-<section id="patterns">
-  <div class="section-title"><span class="icon">🧩</span> Design Patterns</div>
-  <div class="section-sub">Every extension point is a trait — Open/Closed Principle throughout</div>
-  <div class="pattern-grid">
-
-    <div class="pattern-card factory">
-      <h3>🏭 Factory Pattern</h3>
-      <div class="pat-name">FACTORY</div>
-      <p>Three factories select the correct concrete implementation from <code>Config</code> without exposing construction logic to callers.</p>
-      <div class="pat-items">
-        <div class="pat-item"><div class="dot"></div><code>SourceFactory</code> → LocalSource | S3Source</div>
-        <div class="pat-item"><div class="dot"></div><code>SanitizerFactory</code> → RecordSanitizer</div>
-        <div class="pat-item"><div class="dot"></div><code>SenderFactory</code> → HttpSender | DryRunSender</div>
-        <div class="pat-item"><div class="dot"></div><code>FilterFactory</code> → FilterChain from Config</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>traffic-replayer — Visual Dashboard</title>
+    <script src="chart.umd.min.js"></script>
+    <style>
+      :root {
+        --bg: #f6f8fa;
+        --surface: #ffffff;
+        --surface2: #eaeef2;
+        --border: #d0d7de;
+        --text: #24292f;
+        --muted: #57606a;
+        --blue: #0969da;
+        --green: #1a7f37;
+        --purple: #8250df;
+        --orange: #bd5d00;
+        --red: #cf222e;
+        --yellow: #9a6700;
+        --teal: #2aa198;
+        --grad: linear-gradient(135deg, #0969da 0%, #8250df 100%);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", system-ui, sans-serif;
+        line-height: 1.6;
+      }
+
+      /* ── NAV ── */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        padding: 0.75rem 2rem;
+      }
+      nav .logo {
+        font-weight: 700;
+        font-size: 1.1rem;
+        background: var(--grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      nav a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: color 0.2s;
+      }
+      nav a:hover {
+        color: var(--text);
+      }
+      .badge {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.15rem 0.6rem;
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-left: auto;
+      }
+
+      /* ── HERO ── */
+      .hero {
+        padding: 5rem 2rem 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 80% 60% at 50% 0%,
+          rgba(9, 105, 218, 0.12),
+          transparent
+        );
+        pointer-events: none;
+      }
+      .hero h1 {
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        font-weight: 800;
+        margin-bottom: 1rem;
+        background: var(--grad);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .hero p {
+        color: var(--muted);
+        max-width: 640px;
+        margin: 0 auto 2rem;
+        font-size: 1.1rem;
+      }
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+      }
+      .tag {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.3rem 0.9rem;
+        font-size: 0.8rem;
+        color: var(--blue);
+      }
+      .tag.green {
+        color: var(--green);
+      }
+      .tag.purple {
+        color: var(--purple);
+      }
+      .tag.orange {
+        color: var(--orange);
+      }
+      .btn-github {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        color: var(--text);
+        text-decoration: none;
+        margin-top: 0.5rem;
+        transition:
+          border-color 0.2s,
+          background 0.2s,
+          color 0.2s;
+      }
+      .btn-github:hover {
+        border-color: var(--blue);
+        background: rgba(9, 105, 218, 0.08);
+        color: var(--blue);
+      }
+
+      /* ── SECTIONS ── */
+      section {
+        padding: 4rem 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .section-title {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .section-sub {
+        color: var(--muted);
+        margin-bottom: 2.5rem;
+        font-size: 0.95rem;
+      }
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 2rem 0;
+      }
+
+      /* ── CARDS ── */
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+      .card:hover {
+        border-color: var(--blue);
+        transform: translateY(-2px);
+      }
+      .card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .card p {
+        color: var(--muted);
+        font-size: 0.875rem;
+      }
+
+      /* ── STAT CARDS ── */
+      .stat-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        text-align: center;
+      }
+      .stat-card .val {
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .stat-card .lbl {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin-top: 0.4rem;
+      }
+      .stat-card.blue .val {
+        color: var(--blue);
+      }
+      .stat-card.green .val {
+        color: var(--green);
+      }
+      .stat-card.red .val {
+        color: var(--red);
+      }
+      .stat-card.purple .val {
+        color: var(--purple);
+      }
+      .stat-card.orange .val {
+        color: var(--orange);
+      }
+      .stat-card.yellow .val {
+        color: var(--yellow);
+      }
+
+      /* ── CHARTS ── */
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      .chart-box {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+      }
+      .chart-box h4 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--muted);
+      }
+      .chart-box canvas {
+        max-height: 240px;
+      }
+
+      /* ── FILE DROP ── */
+      .drop-zone {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 0.2s,
+          background 0.2s;
+        margin-bottom: 2rem;
+      }
+      .drop-zone:hover,
+      .drop-zone.drag {
+        border-color: var(--blue);
+        background: rgba(9, 105, 218, 0.06);
+      }
+      .drop-zone p {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .drop-zone strong {
+        color: var(--blue);
+      }
+      #file-input {
+        display: none;
+      }
+
+      /* ── ARCHITECTURE SVG ── */
+      .arch-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 2rem;
+        overflow-x: auto;
+      }
+      .arch-wrap svg {
+        width: 100%;
+        height: auto;
+        min-width: 700px;
+      }
+
+      /* ── PIPELINE FLOW ── */
+      .pipeline {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .pipe-step {
+        flex: 1;
+        min-width: 120px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0;
+        padding: 1rem 0.75rem;
+        text-align: center;
+        position: relative;
+        transition: background 0.2s;
+      }
+      .pipe-step:first-child {
+        border-radius: 12px 0 0 12px;
+      }
+      .pipe-step:last-child {
+        border-radius: 0 12px 12px 0;
+      }
+      .pipe-step:hover {
+        background: var(--surface2);
+      }
+      .pipe-step .ps-icon {
+        font-size: 1.4rem;
+        margin-bottom: 0.4rem;
+      }
+      .pipe-step .ps-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .pipe-step .ps-sub {
+        font-size: 0.65rem;
+        color: var(--muted);
+        margin-top: 0.2rem;
+      }
+      .pipe-arrow {
+        width: 28px;
+        min-width: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 1.2rem;
+        flex-shrink: 0;
+      }
+
+      /* ── PATTERN CARDS ── */
+      .pattern-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+      }
+      .pattern-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .pattern-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+      .pattern-card.factory::before {
+        background: linear-gradient(90deg, var(--blue), var(--purple));
+      }
+      .pattern-card.strategy::before {
+        background: linear-gradient(90deg, var(--green), var(--teal));
+      }
+      .pattern-card.chain::before {
+        background: linear-gradient(90deg, var(--orange), var(--yellow));
+      }
+      .pattern-card.facade::before {
+        background: linear-gradient(90deg, var(--purple), var(--red));
+      }
+      .pattern-card h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+      }
+      .pattern-card .pat-name {
+        font-size: 0.75rem;
+        margin-bottom: 0.75rem;
+        font-weight: 500;
+        opacity: 0.7;
+      }
+      .pattern-card.factory .pat-name {
+        color: var(--blue);
+      }
+      .pattern-card.strategy .pat-name {
+        color: var(--green);
+      }
+      .pattern-card.chain .pat-name {
+        color: var(--orange);
+      }
+      .pattern-card.facade .pat-name {
+        color: var(--purple);
+      }
+      .pattern-card p {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+      }
+      .pat-items {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .pat-item {
+        background: var(--surface2);
+        border-radius: 6px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .pat-item .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .factory .dot {
+        background: var(--blue);
+      }
+      .strategy .dot {
+        background: var(--green);
+      }
+      .chain .dot {
+        background: var(--orange);
+      }
+      .facade .dot {
+        background: var(--purple);
+      }
+
+      /* ── CODE BLOCK ── */
+      pre {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.25rem;
+        overflow-x: auto;
+        font-size: 0.82rem;
+        line-height: 1.7;
+        margin: 1rem 0;
+      }
+      .kw {
+        color: var(--purple);
+      }
+      .ty {
+        color: var(--blue);
+      }
+      .str {
+        color: var(--orange);
+      }
+      .cm {
+        color: var(--muted);
+      }
+      .fn {
+        color: var(--teal);
+      }
+
+      /* ── EXTENSION TABLE ── */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+      }
+      th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        background: var(--surface2);
+        color: var(--muted);
+        font-weight: 600;
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      td:first-child {
+        color: var(--blue);
+        font-family: monospace;
+        font-size: 0.82rem;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: var(--surface2);
+      }
+
+      /* ── TOAST ── */
+      .toast {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.75rem 1.25rem;
+        font-size: 0.875rem;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.3s;
+        pointer-events: none;
+        z-index: 200;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast.ok {
+        border-color: var(--green);
+        color: var(--green);
+      }
+      .toast.err {
+        border-color: var(--red);
+        color: var(--red);
+      }
+
+      /* ── UTIL ── */
+      .mt {
+        margin-top: 1rem;
+      }
+      .text-muted {
+        color: var(--muted);
+      }
+      .mono {
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- NAV -->
+    <nav>
+      <span class="logo">traffic-replayer</span>
+      <a href="#overview">Overview</a>
+      <a href="#stats">Stats</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#patterns">Patterns</a>
+      <a href="#cli">CLI</a>
+      <span class="badge">Author- Biniyam Gebreyohannes</span>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+      <h1>traffic-replayer</h1>
+      <p>
+        Production-grade Rust CLI that replays HTTP traffic from NDJSON logs —
+        with PII sanitization, concurrent dispatch, S3 streaming, and rich
+        latency statistics.
+      </p>
+      <div class="tags">
+        <span class="tag">Rust stable</span>
+        <span class="tag green">Tokio async</span>
+        <span class="tag purple">reqwest</span>
+        <span class="tag orange">aws-sdk-s3</span>
+        <span class="tag">hdrhistogram</span>
+        <span class="tag green">governor rate-limiter</span>
+        <span class="tag purple">Open/Closed Principle</span>
+        <span class="tag">75 / 75 tests</span>
       </div>
+      <a
+        href="#"
+        class="btn-github"
+        id="github-btn"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><svg
+          width="18"
+          height="18"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+          />
+        </svg>
+        View on GitHub</a
+      >
     </div>
 
-    <div class="pattern-card strategy">
-      <h3>⚡ Strategy Pattern</h3>
-      <div class="pat-name">STRATEGY</div>
-      <p><code>RequestSender</code> is the strategy interface. The pipeline never knows whether it's sending real HTTP or running dry — it just calls <code>sender.send(record)</code>.</p>
-      <div class="pat-items">
-        <div class="pat-item"><div class="dot"></div><code>HttpSender</code>: real reqwest dispatch</div>
-        <div class="pat-item"><div class="dot"></div><code>DryRunSender</code>: no-op, 0µs latency</div>
-        <div class="pat-item"><div class="dot"></div>Add gRPC, WebSocket … without pipeline changes</div>
+    <!-- ═══════════════════════ OVERVIEW ═══════════════════════ -->
+    <section id="overview">
+      <div class="section-title">Project Overview</div>
+      <div class="section-sub">
+        What traffic-replayer does and why it matters
       </div>
-    </div>
-
-    <div class="pattern-card chain">
-      <h3>🔗 Chain of Responsibility</h3>
-      <div class="pat-name">CHAIN OF RESPONSIBILITY</div>
-      <p><code>FilterChain</code> composes independent <code>Filter</code>s. AND logic between filter types, OR logic within each type. Records must pass every active filter.</p>
-      <div class="pat-items">
-        <div class="pat-item"><div class="dot"></div><code>MethodFilter</code>: allow-list of methods</div>
-        <div class="pat-item"><div class="dot"></div><code>PathPrefixFilter</code>: prefix allow-list</div>
-        <div class="pat-item"><div class="dot"></div><code>StatusFilter</code>: original status allow-list</div>
-        <div class="pat-item"><div class="dot"></div>Add <code>HeaderFilter</code>, <code>BodySizeFilter</code> … OCP</div>
+      <div class="card-grid">
+        <div class="card">
+          <h3>Streaming Input</h3>
+          <p>
+            Reads NDJSON line-by-line from a local file or S3 object. Never
+            buffers the full dataset — constant memory regardless of file size.
+          </p>
+        </div>
+        <div class="card">
+          <h3>PII Sanitization</h3>
+          <p>
+            Strips sensitive headers (<code>Authorization</code>,
+            <code>Cookie</code>), redacts query params, and recursively redacts
+            JSON body fields before any network call.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Concurrent Replay</h3>
+          <p>
+            Semaphore-bounded concurrency (default 50). Tokio tasks are spawned
+            only up to the configured limit — no unbounded task spawning.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Rich Statistics</h3>
+          <p>
+            p50 / p95 / p99 latency via <code>hdrhistogram</code>, status
+            distribution, error categories, and throughput — all exportable as
+            JSON.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Smart Filtering</h3>
+          <p>
+            Filter by HTTP method, path prefix, or original status code. All
+            filters are repeatable with OR logic and AND logic between types.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Graceful Shutdown</h3>
+          <p>
+            SIGINT triggers a <code>CancellationToken</code>. In-flight requests
+            drain up to <code>--drain-timeout-ms</code> before partial stats are
+            printed.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <div class="pattern-card facade">
-      <h3>🎭 Facade Pattern</h3>
-      <div class="pat-name">FACADE</div>
-      <p><code>RecordSanitizer</code> composes three sanitization strategies into one <code>sanitize(record, base_url)</code> call — hiding the header/query/body split from callers.</p>
-      <div class="pat-items">
-        <div class="pat-item"><div class="dot"></div><code>HeaderSanitizer</code>: strip remove-list</div>
-        <div class="pat-item"><div class="dot"></div><code>QuerySanitizer</code>: redact denylist params</div>
-        <div class="pat-item"><div class="dot"></div><code>BodySanitizer</code>: recursive JSON redaction</div>
-        <div class="pat-item"><div class="dot"></div>Also handles URL construction + base64 decode</div>
+    <!-- ═══════════════════════ STATS DASHBOARD ═══════════════════════ -->
+    <section id="stats">
+      <div class="section-title">Live Stats Dashboard</div>
+      <div class="section-sub">
+        Drop a <code>stats.json</code> file produced by
+        <code>--output-stats</code> to visualise your run, or click to load a
+        demo.
       </div>
-    </div>
 
-  </div>
+      <div
+        class="drop-zone"
+        id="drop-zone"
+        onclick="document.getElementById('file-input').click()"
+      >
+        <p>
+          Drop <strong>stats.json</strong> here, or
+          <strong>click to browse</strong>
+        </p>
+        <p style="margin-top: 0.5rem; font-size: 0.8rem">
+          — or —
+          <a
+            href="#"
+            onclick="
+              loadDemo();
+              return false;
+            "
+            style="color: var(--blue)"
+            >load demo data</a
+          >
+        </p>
+      </div>
+      <input type="file" id="file-input" accept=".json,application/json" />
 
-  <!-- Extension table -->
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:2rem">
-    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
-      <strong style="font-size:.95rem">Extension Points (Open/Closed Principle)</strong>
-      <span style="color:var(--muted);font-size:.85rem;margin-left:.75rem">— add these without modifying existing code</span>
-    </div>
-    <table>
-      <tr><th>Want to add</th><th>Implement trait</th><th>Register in</th><th>Existing code changes</th></tr>
-      <tr><td>New input backend<br>(stdin, HTTP, Kafka)</td><td><code>RecordSource</code></td><td><code>SourceFactory::create</code></td><td style="color:var(--green)">None</td></tr>
-      <tr><td>New filter type<br>(header, body-size, regex)</td><td><code>Filter</code></td><td><code>FilterFactory::from_config</code></td><td style="color:var(--green)">None</td></tr>
-      <tr><td>New sanitization strategy</td><td><code>Sanitizer</code> + <code>sanitize()</code></td><td><code>RecordSanitizer::new</code></td><td style="color:var(--green)">None</td></tr>
-      <tr><td>New dispatch strategy<br>(gRPC, WebSocket, throttled)</td><td><code>RequestSender</code></td><td><code>SenderFactory::from_config</code></td><td style="color:var(--green)">None</td></tr>
-    </table>
-  </div>
-</section>
+      <div id="dashboard" style="display: none">
+        <div class="stat-cards" id="stat-cards"></div>
+        <div class="charts-grid">
+          <div class="chart-box">
+            <h4>Latency Percentiles (µs)</h4>
+            <canvas id="chart-latency"></canvas>
+          </div>
+          <div class="chart-box">
+            <h4>Status Code Distribution</h4>
+            <canvas id="chart-status"></canvas>
+          </div>
+          <div class="chart-box">
+            <h4>Error Categories</h4>
+            <canvas id="chart-errors"></canvas>
+          </div>
+          <div class="chart-box">
+            <h4>Request Outcomes</h4>
+            <canvas id="chart-outcomes"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<!-- ═══════════════════════ CLI REFERENCE ═══════════════════════ -->
-<section id="cli">
-  <div class="section-title"><span class="icon">💻</span> CLI Reference</div>
-  <div class="section-sub">All flags with types, defaults, and descriptions</div>
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-    <table>
-      <tr><th>Flag</th><th>Type</th><th>Default</th><th>Description</th></tr>
-      <tr><td>--base-url</td><td>String</td><td style="color:var(--red)">required</td><td>Target base URL</td></tr>
-      <tr><td>--input-file</td><td>Path</td><td>—</td><td>Local NDJSON file (mutually exclusive with S3)</td></tr>
-      <tr><td>--s3-bucket + --s3-key</td><td>String</td><td>—</td><td>S3 source (both required together)</td></tr>
-      <tr><td>--concurrency</td><td>u32</td><td>50</td><td>Max in-flight requests (Semaphore bound)</td></tr>
-      <tr><td>--timeout-ms</td><td>u64</td><td>30000</td><td>Total request timeout in milliseconds</td></tr>
-      <tr><td>--connect-timeout-ms</td><td>u64</td><td>5000</td><td>TCP connect timeout in milliseconds</td></tr>
-      <tr><td>--method</td><td>String…</td><td>—</td><td>Filter: HTTP method(s), repeatable, OR logic</td></tr>
-      <tr><td>--path-prefix</td><td>String…</td><td>—</td><td>Filter: path prefix(es), repeatable, OR logic</td></tr>
-      <tr><td>--status</td><td>u16…</td><td>—</td><td>Filter: original status codes, repeatable, OR logic</td></tr>
-      <tr><td>--rate</td><td>u32</td><td>—</td><td>Max req/s (governor RateLimiter)</td></tr>
-      <tr><td>--dry-run</td><td>flag</td><td>false</td><td>Parse/filter/sanitize — do NOT send requests</td></tr>
-      <tr><td>--verbose</td><td>flag</td><td>false</td><td>Enable debug-level tracing to stderr</td></tr>
-      <tr><td>--output-stats</td><td>Path</td><td>—</td><td>Write full JSON stats to this file (never stdout)</td></tr>
-      <tr><td>--max-records</td><td>u64</td><td>—</td><td>Stop after N records</td></tr>
-      <tr><td>--insecure-skip-tls-verify</td><td>flag</td><td>false</td><td>Disable TLS certificate verification</td></tr>
-      <tr><td>--follow-redirects</td><td>flag</td><td>false</td><td>Follow HTTP redirects (default: OFF)</td></tr>
-      <tr><td>--aws-region</td><td>String</td><td>—</td><td>AWS region (falls back to AWS_DEFAULT_REGION)</td></tr>
-      <tr><td>--sanitize-passthrough-keys</td><td>String</td><td>—</td><td>Comma-separated keys exempt from sanitization</td></tr>
-      <tr><td>--drain-timeout-ms</td><td>u64</td><td>5000</td><td>Max wait for in-flight requests on SIGINT</td></tr>
-    </table>
-  </div>
+    <!-- ═══════════════════════ ARCHITECTURE ═══════════════════════ -->
+    <section id="architecture">
+      <div class="section-title">Architecture Diagram</div>
+      <div class="section-sub">
+        Module layout with data-flow arrows and design-pattern annotations
+      </div>
+      <div class="arch-wrap">
+        <svg
+          viewBox="0 0 860 600"
+          xmlns="http://www.w3.org/2000/svg"
+          font-family="'Segoe UI',system-ui,sans-serif"
+        >
+          <defs>
+            <marker
+              id="arr"
+              markerWidth="8"
+              markerHeight="8"
+              refX="6"
+              refY="3"
+              orient="auto"
+            >
+              <path d="M0,0 L0,6 L8,3 z" fill="#0969da" />
+            </marker>
+            <marker
+              id="arr2"
+              markerWidth="8"
+              markerHeight="8"
+              refX="6"
+              refY="3"
+              orient="auto"
+            >
+              <path d="M0,0 L0,6 L8,3 z" fill="#1a7f37" />
+            </marker>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
-  <div style="margin-top:2rem">
-    <div class="section-title" style="font-size:1.1rem"><span class="icon">📋</span> Example Commands</div>
-    <pre><span class="cm"># Local replay with filters and rate limit</span>
+          <!-- Background grid -->
+          <rect width="860" height="600" fill="#f6f8fa" rx="12" />
+          <rect
+            x="1"
+            y="1"
+            width="858"
+            height="598"
+            fill="none"
+            stroke="#d0d7de"
+            stroke-width="1"
+            rx="12"
+          />
+
+          <!-- Section labels -->
+          <text x="20" y="28" fill="#57606a" font-size="11" font-weight="600">
+            ENTRY
+          </text>
+          <text x="200" y="28" fill="#57606a" font-size="11" font-weight="600">
+            INPUT LAYER
+          </text>
+          <text x="430" y="28" fill="#57606a" font-size="11" font-weight="600">
+            PROCESSING LAYER
+          </text>
+          <text x="670" y="28" fill="#57606a" font-size="11" font-weight="600">
+            OUTPUT LAYER
+          </text>
+
+          <!-- Vertical dividers -->
+          <line
+            x1="170"
+            y1="38"
+            x2="170"
+            y2="580"
+            stroke="#d0d7de"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+          <line
+            x1="410"
+            y1="38"
+            x2="410"
+            y2="580"
+            stroke="#d0d7de"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+          <line
+            x1="650"
+            y1="38"
+            x2="650"
+            y2="580"
+            stroke="#d0d7de"
+            stroke-width="1"
+            stroke-dasharray="4,4"
+          />
+
+          <!-- ── main.rs ── -->
+          <rect
+            x="20"
+            y="50"
+            width="130"
+            height="60"
+            rx="8"
+            fill="#0969da"
+            fill-opacity=".15"
+            stroke="#0969da"
+            stroke-width="1.5"
+            filter="url(#glow)"
+          />
+          <text
+            x="85"
+            y="76"
+            fill="#0969da"
+            font-size="13"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            main.rs
+          </text>
+          <text
+            x="85"
+            y="94"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            Entry · thin
+          </text>
+
+          <!-- cli.rs + config.rs -->
+          <rect
+            x="20"
+            y="130"
+            width="130"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+            stroke-width="1"
+          />
+          <text
+            x="85"
+            y="151"
+            fill="#24292f"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            cli.rs
+          </text>
+          <text
+            x="85"
+            y="167"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            clap args
+          </text>
+
+          <rect
+            x="20"
+            y="195"
+            width="130"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+            stroke-width="1"
+          />
+          <text
+            x="85"
+            y="216"
+            fill="#24292f"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            config.rs
+          </text>
+          <text
+            x="85"
+            y="232"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            validated Config
+          </text>
+
+          <!-- ── INPUT LAYER ── -->
+          <!-- SourceFactory -->
+          <rect
+            x="190"
+            y="50"
+            width="200"
+            height="55"
+            rx="8"
+            fill="#8250df"
+            fill-opacity=".12"
+            stroke="#8250df"
+            stroke-width="1.5"
+          />
+          <text
+            x="290"
+            y="72"
+            fill="#8250df"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            SourceFactory
+          </text>
+          <text
+            x="290"
+            y="88"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            Factory pattern
+          </text>
+
+          <rect
+            x="190"
+            y="120"
+            width="92"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="236"
+            y="141"
+            fill="#24292f"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            LocalSource
+          </text>
+          <text
+            x="236"
+            y="156"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            tokio::fs
+          </text>
+
+          <rect
+            x="298"
+            y="120"
+            width="92"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="344"
+            y="141"
+            fill="#24292f"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            S3Source
+          </text>
+          <text
+            x="344"
+            y="156"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            aws-sdk-s3
+          </text>
+
+          <!-- LineStream arrow down -->
+          <line
+            x1="290"
+            y1="175"
+            x2="290"
+            y2="210"
+            stroke="#0969da"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+          <rect
+            x="210"
+            y="210"
+            width="160"
+            height="40"
+            rx="8"
+            fill="#0969da"
+            fill-opacity=".08"
+            stroke="#0969da"
+            stroke-width="1"
+          />
+          <text
+            x="290"
+            y="226"
+            fill="#0969da"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            LineStream
+          </text>
+          <text
+            x="290"
+            y="240"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Pin&lt;Box&lt;dyn Stream&gt;&gt;
+          </text>
+
+          <!-- ── PROCESSING LAYER ── -->
+          <!-- FilterChain -->
+          <rect
+            x="430"
+            y="50"
+            width="200"
+            height="55"
+            rx="8"
+            fill="#bd5d00"
+            fill-opacity=".12"
+            stroke="#bd5d00"
+            stroke-width="1.5"
+          />
+          <text
+            x="530"
+            y="72"
+            fill="#bd5d00"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            FilterChain
+          </text>
+          <text
+            x="530"
+            y="88"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            Chain of Responsibility
+          </text>
+
+          <rect
+            x="430"
+            y="120"
+            width="58"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="459"
+            y="138"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Method
+          </text>
+          <text
+            x="459"
+            y="152"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Filter
+          </text>
+
+          <rect
+            x="496"
+            y="120"
+            width="62"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="527"
+            y="138"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            PathPrefix
+          </text>
+          <text
+            x="527"
+            y="152"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Filter
+          </text>
+
+          <rect
+            x="566"
+            y="120"
+            width="58"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="595"
+            y="138"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Status
+          </text>
+          <text
+            x="595"
+            y="152"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Filter
+          </text>
+
+          <!-- RecordSanitizer -->
+          <rect
+            x="430"
+            y="185"
+            width="200"
+            height="55"
+            rx="8"
+            fill="#1a7f37"
+            fill-opacity=".12"
+            stroke="#1a7f37"
+            stroke-width="1.5"
+          />
+          <text
+            x="530"
+            y="207"
+            fill="#1a7f37"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            RecordSanitizer
+          </text>
+          <text
+            x="530"
+            y="223"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            Facade + Strategy
+          </text>
+
+          <rect
+            x="430"
+            y="255"
+            width="58"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="459"
+            y="273"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Header
+          </text>
+          <text
+            x="459"
+            y="287"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Sanitizer
+          </text>
+
+          <rect
+            x="496"
+            y="255"
+            width="62"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="527"
+            y="273"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Query
+          </text>
+          <text
+            x="527"
+            y="287"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Sanitizer
+          </text>
+
+          <rect
+            x="566"
+            y="255"
+            width="58"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="595"
+            y="273"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            Body
+          </text>
+          <text
+            x="595"
+            y="287"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            Sanitizer
+          </text>
+
+          <!-- SenderFactory -->
+          <rect
+            x="430"
+            y="320"
+            width="200"
+            height="55"
+            rx="8"
+            fill="#8250df"
+            fill-opacity=".12"
+            stroke="#8250df"
+            stroke-width="1.5"
+          />
+          <text
+            x="530"
+            y="342"
+            fill="#8250df"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            SenderFactory
+          </text>
+          <text
+            x="530"
+            y="358"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            Strategy pattern
+          </text>
+
+          <rect
+            x="435"
+            y="390"
+            width="88"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="479"
+            y="408"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            HttpSender
+          </text>
+          <text
+            x="479"
+            y="422"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            reqwest
+          </text>
+
+          <rect
+            x="537"
+            y="390"
+            width="88"
+            height="45"
+            rx="6"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="581"
+            y="408"
+            fill="#24292f"
+            font-size="10"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            DryRunSender
+          </text>
+          <text
+            x="581"
+            y="422"
+            fill="#57606a"
+            font-size="9"
+            text-anchor="middle"
+          >
+            no-op
+          </text>
+
+          <!-- Pipeline box -->
+          <rect
+            x="430"
+            y="455"
+            width="200"
+            height="55"
+            rx="8"
+            fill="#9a6700"
+            fill-opacity=".12"
+            stroke="#9a6700"
+            stroke-width="1.5"
+          />
+          <text
+            x="530"
+            y="477"
+            fill="#9a6700"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            pipeline.rs
+          </text>
+          <text
+            x="530"
+            y="493"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            Semaphore · RateLimiter · SIGINT
+          </text>
+
+          <!-- ── OUTPUT LAYER ── -->
+          <rect
+            x="670"
+            y="50"
+            width="170"
+            height="55"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="755"
+            y="72"
+            fill="#24292f"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            StatsAccumulator
+          </text>
+          <text
+            x="755"
+            y="88"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            hdrhistogram · mpsc
+          </text>
+
+          <rect
+            x="670"
+            y="125"
+            width="170"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="755"
+            y="146"
+            fill="#24292f"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            AggregatedStats
+          </text>
+          <text
+            x="755"
+            y="161"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            p50 / p95 / p99
+          </text>
+
+          <rect
+            x="670"
+            y="195"
+            width="170"
+            height="50"
+            rx="8"
+            fill="#1a7f37"
+            fill-opacity=".1"
+            stroke="#1a7f37"
+            stroke-width="1"
+          />
+          <text
+            x="755"
+            y="216"
+            fill="#1a7f37"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            stdout summary
+          </text>
+          <text
+            x="755"
+            y="231"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            human-readable
+          </text>
+
+          <rect
+            x="670"
+            y="265"
+            width="170"
+            height="50"
+            rx="8"
+            fill="#0969da"
+            fill-opacity=".1"
+            stroke="#0969da"
+            stroke-width="1"
+          />
+          <text
+            x="755"
+            y="286"
+            fill="#0969da"
+            font-size="12"
+            font-weight="700"
+            text-anchor="middle"
+          >
+            stats.json
+          </text>
+          <text
+            x="755"
+            y="301"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            --output-stats file
+          </text>
+
+          <!-- error.rs + models.rs at bottom -->
+          <rect
+            x="20"
+            y="290"
+            width="130"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="85"
+            y="311"
+            fill="#24292f"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            error.rs
+          </text>
+          <text
+            x="85"
+            y="326"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            TrafficReplayerError
+          </text>
+
+          <rect
+            x="20"
+            y="355"
+            width="130"
+            height="50"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text
+            x="85"
+            y="376"
+            fill="#24292f"
+            font-size="11"
+            font-weight="600"
+            text-anchor="middle"
+          >
+            models.rs
+          </text>
+          <text
+            x="85"
+            y="391"
+            fill="#57606a"
+            font-size="10"
+            text-anchor="middle"
+          >
+            ReplayRecord + Outcome
+          </text>
+
+          <!-- ── ARROWS ── -->
+          <!-- main → SourceFactory -->
+          <line
+            x1="150"
+            y1="80"
+            x2="188"
+            y2="78"
+            stroke="#0969da"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+          <!-- main → FilterChain -->
+          <path
+            d="M85,110 Q85,42 428,72"
+            fill="none"
+            stroke="#bd5d00"
+            stroke-width="1.5"
+            stroke-dasharray="5,3"
+            marker-end="url(#arr)"
+          />
+          <!-- main → SenderFactory -->
+          <path
+            d="M85,110 Q85,52 428,347"
+            fill="none"
+            stroke="#8250df"
+            stroke-width="1"
+            stroke-dasharray="5,3"
+            marker-end="url(#arr)"
+          />
+
+          <!-- SourceFactory → LocalSource/S3 -->
+          <line
+            x1="236"
+            y1="105"
+            x2="236"
+            y2="118"
+            stroke="#57606a"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+          <line
+            x1="344"
+            y1="105"
+            x2="344"
+            y2="118"
+            stroke="#57606a"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+
+          <!-- LineStream → FilterChain -->
+          <line
+            x1="370"
+            y1="230"
+            x2="428"
+            y2="78"
+            stroke="#0969da"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+
+          <!-- FilterChain → Filters -->
+          <line
+            x1="459"
+            y1="105"
+            x2="459"
+            y2="118"
+            stroke="#bd5d00"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+          <line
+            x1="527"
+            y1="105"
+            x2="527"
+            y2="118"
+            stroke="#bd5d00"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+          <line
+            x1="595"
+            y1="105"
+            x2="595"
+            y2="118"
+            stroke="#bd5d00"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+
+          <!-- FilterChain → RecordSanitizer -->
+          <line
+            x1="530"
+            y1="165"
+            x2="530"
+            y2="183"
+            stroke="#1a7f37"
+            stroke-width="1.5"
+            marker-end="url(#arr2)"
+          />
+
+          <!-- RecordSanitizer → Sanitizers -->
+          <line
+            x1="459"
+            y1="240"
+            x2="459"
+            y2="253"
+            stroke="#1a7f37"
+            stroke-width="1"
+            marker-end="url(#arr2)"
+          />
+          <line
+            x1="527"
+            y1="240"
+            x2="527"
+            y2="253"
+            stroke="#1a7f37"
+            stroke-width="1"
+            marker-end="url(#arr2)"
+          />
+          <line
+            x1="595"
+            y1="240"
+            x2="595"
+            y2="253"
+            stroke="#1a7f37"
+            stroke-width="1"
+            marker-end="url(#arr2)"
+          />
+
+          <!-- RecordSanitizer → SenderFactory -->
+          <line
+            x1="530"
+            y1="300"
+            x2="530"
+            y2="318"
+            stroke="#8250df"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+
+          <!-- SenderFactory → Senders -->
+          <line
+            x1="479"
+            y1="375"
+            x2="479"
+            y2="388"
+            stroke="#8250df"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+          <line
+            x1="581"
+            y1="375"
+            x2="581"
+            y2="388"
+            stroke="#8250df"
+            stroke-width="1"
+            marker-end="url(#arr)"
+          />
+
+          <!-- Senders → pipeline -->
+          <line
+            x1="530"
+            y1="435"
+            x2="530"
+            y2="453"
+            stroke="#9a6700"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+
+          <!-- pipeline → StatsAccumulator -->
+          <line
+            x1="630"
+            y1="480"
+            x2="668"
+            y2="78"
+            stroke="#0969da"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+
+          <!-- Stats → AggregatedStats -->
+          <line
+            x1="755"
+            y1="105"
+            x2="755"
+            y2="123"
+            stroke="#0969da"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+          <!-- AggregatedStats → stdout -->
+          <line
+            x1="755"
+            y1="175"
+            x2="755"
+            y2="193"
+            stroke="#1a7f37"
+            stroke-width="1.5"
+            marker-end="url(#arr2)"
+          />
+          <!-- AggregatedStats → stats.json -->
+          <line
+            x1="755"
+            y1="245"
+            x2="755"
+            y2="263"
+            stroke="#0969da"
+            stroke-width="1.5"
+            marker-end="url(#arr)"
+          />
+
+          <!-- Legend -->
+          <rect
+            x="20"
+            y="525"
+            width="820"
+            height="60"
+            rx="8"
+            fill="#ffffff"
+            stroke="#d0d7de"
+          />
+          <text x="40" y="548" fill="#57606a" font-size="11" font-weight="600">
+            LEGEND
+          </text>
+          <line
+            x1="100"
+            y1="544"
+            x2="130"
+            y2="544"
+            stroke="#8250df"
+            stroke-width="2"
+          />
+          <text x="135" y="548" fill="#57606a" font-size="10">Factory</text>
+          <line
+            x1="190"
+            y1="544"
+            x2="220"
+            y2="544"
+            stroke="#bd5d00"
+            stroke-width="2"
+          />
+          <text x="225" y="548" fill="#57606a" font-size="10">
+            Chain of Responsibility
+          </text>
+          <line
+            x1="360"
+            y1="544"
+            x2="390"
+            y2="544"
+            stroke="#1a7f37"
+            stroke-width="2"
+          />
+          <text x="395" y="548" fill="#57606a" font-size="10">
+            Strategy / Facade
+          </text>
+          <line
+            x1="490"
+            y1="544"
+            x2="520"
+            y2="544"
+            stroke="#9a6700"
+            stroke-width="2"
+          />
+          <text x="525" y="548" fill="#57606a" font-size="10">
+            Pipeline orchestration
+          </text>
+          <line
+            x1="660"
+            y1="544"
+            x2="690"
+            y2="544"
+            stroke="#0969da"
+            stroke-width="2"
+          />
+          <text x="695" y="548" fill="#57606a" font-size="10">Data flow</text>
+
+          <text x="40" y="574" fill="#57606a" font-size="10">
+            OCP = every border box is a trait-based extension point. Add
+            implementations without modifying existing code.
+          </text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════ PIPELINE FLOW ═══════════════════════ -->
+    <section id="pipeline">
+      <div class="section-title">Request Pipeline Flow</div>
+      <div class="section-sub">
+        Every record passes through this sequence — from raw bytes to recorded
+        outcome
+      </div>
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="ps-icon">1</div>
+          <div class="ps-label">Read Line</div>
+          <div class="ps-sub">LineStream</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">2</div>
+          <div class="ps-label">Parse JSON</div>
+          <div class="ps-sub">ReplayRecord</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">3</div>
+          <div class="ps-label">Filter</div>
+          <div class="ps-sub">FilterChain</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">4</div>
+          <div class="ps-label">Sanitize</div>
+          <div class="ps-sub">RecordSanitizer</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">5</div>
+          <div class="ps-label">Rate Limit</div>
+          <div class="ps-sub">governor</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">6</div>
+          <div class="ps-label">Acquire Permit</div>
+          <div class="ps-sub">Semaphore</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">7</div>
+          <div class="ps-label">Spawn Task</div>
+          <div class="ps-sub">tokio::spawn</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">8</div>
+          <div class="ps-label">Send Request</div>
+          <div class="ps-sub">RequestSender</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step">
+          <div class="ps-icon">9</div>
+          <div class="ps-label">Record Stats</div>
+          <div class="ps-sub">mpsc → Acc</div>
+        </div>
+      </div>
+
+      <div
+        style="
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-top: 1rem;
+        "
+      >
+        <h4
+          style="
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--muted);
+          "
+        >
+          Error handling at each stage
+        </h4>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+            font-size: 0.82rem;
+          "
+        >
+          <div
+            style="
+              background: var(--surface2);
+              border-radius: 8px;
+              padding: 0.75rem;
+            "
+          >
+            <span style="color: var(--red)">Parse error</span><br /><span
+              style="color: var(--muted)"
+              >warn! + parse_errors++ + continue</span
+            >
+          </div>
+          <div
+            style="
+              background: var(--surface2);
+              border-radius: 8px;
+              padding: 0.75rem;
+            "
+          >
+            <span style="color: var(--yellow)">Filter reject</span><br /><span
+              style="color: var(--muted)"
+              >filtered_count++ + continue</span
+            >
+          </div>
+          <div
+            style="
+              background: var(--surface2);
+              border-radius: 8px;
+              padding: 0.75rem;
+            "
+          >
+            <span style="color: var(--orange)">Sanitize error</span><br /><span
+              style="color: var(--muted)"
+              >warn! + parse_errors++ + continue</span
+            >
+          </div>
+          <div
+            style="
+              background: var(--surface2);
+              border-radius: 8px;
+              padding: 0.75rem;
+            "
+          >
+            <span style="color: var(--red)">Transport error</span><br /><span
+              style="color: var(--muted)"
+              >failed++ + error_categories++ + continue</span
+            >
+          </div>
+          <div
+            style="
+              background: var(--surface2);
+              border-radius: 8px;
+              padding: 0.75rem;
+            "
+          >
+            <span style="color: var(--green)">Non-2xx response</span><br /><span
+              style="color: var(--muted)"
+              >failed++ — exit code stays 0</span
+            >
+          </div>
+          <div
+            style="
+              background: var(--surface2);
+              border-radius: 8px;
+              padding: 0.75rem;
+            "
+          >
+            <span style="color: var(--blue)">SIGINT</span><br /><span
+              style="color: var(--muted)"
+              >CancellationToken → drain → exit 2</span
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════ DESIGN PATTERNS ═══════════════════════ -->
+    <section id="patterns">
+      <div class="section-title">Design Patterns</div>
+
+      <!-- Extension table -->
+      <div
+        style="
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          overflow: hidden;
+          margin-top: 2rem;
+        "
+      >
+        <div
+          style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border)"
+        >
+          <strong style="font-size: 0.95rem">Extension Points </strong>
+          <span
+            style="
+              color: var(--muted);
+              font-size: 0.85rem;
+              margin-left: 0.75rem;
+            "
+            >— you can add these without modifying existing code</span
+          >
+        </div>
+        <table>
+          <tr>
+            <th>Want to add</th>
+            <th>Implement trait</th>
+            <th>Register in</th>
+            <th>Existing code changes</th>
+          </tr>
+          <tr>
+            <td>New input backend<br />(stdin, HTTP, Kafka)</td>
+            <td><code>RecordSource</code></td>
+            <td><code>SourceFactory::create</code></td>
+            <td style="color: var(--green)">None</td>
+          </tr>
+          <tr>
+            <td>New filter type<br />(header, body-size, regex)</td>
+            <td><code>Filter</code></td>
+            <td><code>FilterFactory::from_config</code></td>
+            <td style="color: var(--green)">None</td>
+          </tr>
+          <tr>
+            <td>New sanitization strategy</td>
+            <td><code>Sanitizer</code> + <code>sanitize()</code></td>
+            <td><code>RecordSanitizer::new</code></td>
+            <td style="color: var(--green)">None</td>
+          </tr>
+          <tr>
+            <td>New dispatch strategy<br />(gRPC, WebSocket, throttled)</td>
+            <td><code>RequestSender</code></td>
+            <td><code>SenderFactory::from_config</code></td>
+            <td style="color: var(--green)">None</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════ CLI REFERENCE ═══════════════════════ -->
+    <section id="cli">
+      <div class="section-title">CLI Reference</div>
+      <div class="section-sub">
+        All flags with types, defaults, and descriptions
+      </div>
+      <div
+        style="
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          overflow: hidden;
+        "
+      >
+        <table>
+          <tr>
+            <th>Flag</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+          <tr>
+            <td>--base-url</td>
+            <td>String</td>
+            <td style="color: var(--red)">required</td>
+            <td>Target base URL</td>
+          </tr>
+          <tr>
+            <td>--input-file</td>
+            <td>Path</td>
+            <td>—</td>
+            <td>Local NDJSON file (mutually exclusive with S3)</td>
+          </tr>
+          <tr>
+            <td>--s3-bucket + --s3-key</td>
+            <td>String</td>
+            <td>—</td>
+            <td>S3 source (both required together)</td>
+          </tr>
+          <tr>
+            <td>--concurrency</td>
+            <td>u32</td>
+            <td>50</td>
+            <td>Max in-flight requests (Semaphore bound)</td>
+          </tr>
+          <tr>
+            <td>--timeout-ms</td>
+            <td>u64</td>
+            <td>30000</td>
+            <td>Total request timeout in milliseconds</td>
+          </tr>
+          <tr>
+            <td>--connect-timeout-ms</td>
+            <td>u64</td>
+            <td>5000</td>
+            <td>TCP connect timeout in milliseconds</td>
+          </tr>
+          <tr>
+            <td>--method</td>
+            <td>String…</td>
+            <td>—</td>
+            <td>Filter: HTTP method(s), repeatable, OR logic</td>
+          </tr>
+          <tr>
+            <td>--path-prefix</td>
+            <td>String…</td>
+            <td>—</td>
+            <td>Filter: path prefix(es), repeatable, OR logic</td>
+          </tr>
+          <tr>
+            <td>--status</td>
+            <td>u16…</td>
+            <td>—</td>
+            <td>Filter: original status codes, repeatable, OR logic</td>
+          </tr>
+          <tr>
+            <td>--rate</td>
+            <td>u32</td>
+            <td>—</td>
+            <td>Max req/s (governor RateLimiter)</td>
+          </tr>
+          <tr>
+            <td>--dry-run</td>
+            <td>flag</td>
+            <td>false</td>
+            <td>Parse/filter/sanitize — do NOT send requests</td>
+          </tr>
+          <tr>
+            <td>--verbose</td>
+            <td>flag</td>
+            <td>false</td>
+            <td>Enable debug-level tracing to stderr</td>
+          </tr>
+          <tr>
+            <td>--output-stats</td>
+            <td>Path</td>
+            <td>—</td>
+            <td>Write full JSON stats to this file (never stdout)</td>
+          </tr>
+          <tr>
+            <td>--max-records</td>
+            <td>u64</td>
+            <td>—</td>
+            <td>Stop after N records</td>
+          </tr>
+          <tr>
+            <td>--insecure-skip-tls-verify</td>
+            <td>flag</td>
+            <td>false</td>
+            <td>Disable TLS certificate verification</td>
+          </tr>
+          <tr>
+            <td>--follow-redirects</td>
+            <td>flag</td>
+            <td>false</td>
+            <td>Follow HTTP redirects (default: OFF)</td>
+          </tr>
+          <tr>
+            <td>--aws-region</td>
+            <td>String</td>
+            <td>—</td>
+            <td>AWS region (falls back to AWS_DEFAULT_REGION)</td>
+          </tr>
+          <tr>
+            <td>--sanitize-passthrough-keys</td>
+            <td>String</td>
+            <td>—</td>
+            <td>Comma-separated keys exempt from sanitization</td>
+          </tr>
+          <tr>
+            <td>--drain-timeout-ms</td>
+            <td>u64</td>
+            <td>5000</td>
+            <td>Max wait for in-flight requests on SIGINT</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="margin-top: 2rem">
+        <div class="section-title" style="font-size: 1.1rem">
+          Example Commands
+        </div>
+        <pre><span class="cm"># Local replay with filters and rate limit</span>
 <span class="ty">traffic-replayer</span> \
   <span class="kw">--base-url</span> <span class="str">http://localhost:8080</span> \
   <span class="kw">--input-file</span> <span class="str">./traffic.ndjson</span> \
@@ -596,170 +2283,345 @@ tr:hover td{background:var(--surface2)}
   <span class="kw">--base-url</span> <span class="str">http://localhost:8080</span> \
   <span class="kw">--input-file</span> <span class="str">./traffic.ndjson</span> \
   <span class="kw">--sanitize-passthrough-keys</span> <span class="str">session_id,key</span></pre>
-  </div>
-</section>
+      </div>
+    </section>
 
-<!-- FOOTER -->
-<div style="border-top:1px solid var(--border);padding:2rem;text-align:center;color:var(--muted);font-size:.85rem">
-  <strong style="color:var(--text)">traffic-replayer</strong> · v0.1.0 · Rust stable · Tokio async ·
-  75/75 tests ✅ · Open/Closed Principle throughout
-</div>
+    <!-- FOOTER -->
+    <div
+      style="
+        border-top: 1px solid var(--border);
+        padding: 2rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+      "
+    >
+      <strong style="color: var(--text)">Rust traffic replayer</strong> By
+      Biniyam Gebreyohannes
+    </div>
 
-<div class="toast" id="toast"></div>
+    <div class="toast" id="toast"></div>
 
-<script>
-// ── Chart registry ──
-const charts = {};
+    <script>
+      // ── GitHub link (set at runtime) ──
+      (function () {
+        var b = document.getElementById("github-btn");
+        if (b)
+          b.href = atob(
+            "aHR0cHM6Ly9naXRodWIuY29tL2Jpbml5YW0tZmVrZWRlL1J1c3QtUmVwbGF5LUNMSS",
+          );
+      })();
+      // ── Chart registry ──
+      const charts = {};
 
-function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+      function destroyChart(id) {
+        if (charts[id]) {
+          charts[id].destroy();
+          delete charts[id];
+        }
+      }
 
-// ── Toast ──
-function toast(msg,type='ok'){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='toast show '+(type==='ok'?'ok':'err');
-  setTimeout(()=>t.className='toast',3000);
-}
+      // ── Toast ──
+      function toast(msg, type = "ok") {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = "toast show " + (type === "ok" ? "ok" : "err");
+        setTimeout(() => (t.className = "toast"), 3000);
+      }
 
-// ── Demo data ──
-const DEMO = {
-  total_lines:12847, parse_errors:23, filtered_count:1841,
-  attempted:10983, succeeded:10729, failed:254,
-  elapsed_secs:43.7, throughput_rps:251.3,
-  p50_us:1842, p95_us:8210, p99_us:21500,
-  status_distribution:{"200":8841,"201":1042,"204":846,"400":112,"404":87,"429":34,"500":21},
-  error_categories:{"timeout":98,"connection-refused":12,"tls":3,"other":141}
-};
+      // ── Demo data ──
+      const DEMO = {
+        total_lines: 12847,
+        parse_errors: 23,
+        filtered_count: 1841,
+        attempted: 10983,
+        succeeded: 10729,
+        failed: 254,
+        elapsed_secs: 43.7,
+        throughput_rps: 251.3,
+        p50_us: 1842,
+        p95_us: 8210,
+        p99_us: 21500,
+        status_distribution: {
+          200: 8841,
+          201: 1042,
+          204: 846,
+          400: 112,
+          404: 87,
+          429: 34,
+          500: 21,
+        },
+        error_categories: {
+          timeout: 98,
+          "connection-refused": 12,
+          tls: 3,
+          other: 141,
+        },
+      };
 
-// ── Render dashboard ──
-function renderDashboard(s){
-  document.getElementById('dashboard').style.display='block';
+      // ── Render dashboard ──
+      function renderDashboard(s) {
+        document.getElementById("dashboard").style.display = "block";
 
-  // Stat cards
-  const total = s.attempted||1;
-  const cards = [
-    {label:'Lines Read',     val: s.total_lines.toLocaleString(),     cls:'blue'},
-    {label:'Attempted',      val: s.attempted.toLocaleString(),       cls:'purple'},
-    {label:'Succeeded (2xx)',val: s.succeeded.toLocaleString(),       cls:'green'},
-    {label:'Failed',         val: s.failed.toLocaleString(),          cls:'red'},
-    {label:'Parse Errors',   val: s.parse_errors.toLocaleString(),    cls:'yellow'},
-    {label:'Filtered',       val: s.filtered_count.toLocaleString(),  cls:'orange'},
-    {label:'Throughput',     val: s.throughput_rps.toFixed(1)+' r/s', cls:'blue'},
-    {label:'Elapsed',        val: s.elapsed_secs.toFixed(2)+'s',      cls:'purple'},
-  ];
-  document.getElementById('stat-cards').innerHTML = cards.map(c=>
-    `<div class="stat-card ${c.cls}"><div class="val">${c.val}</div><div class="lbl">${c.label}</div></div>`
-  ).join('');
+        // Stat cards
+        const total = s.attempted || 1;
+        const cards = [
+          {
+            label: "Lines Read",
+            val: s.total_lines.toLocaleString(),
+            cls: "blue",
+          },
+          {
+            label: "Attempted",
+            val: s.attempted.toLocaleString(),
+            cls: "purple",
+          },
+          {
+            label: "Succeeded (2xx)",
+            val: s.succeeded.toLocaleString(),
+            cls: "green",
+          },
+          { label: "Failed", val: s.failed.toLocaleString(), cls: "red" },
+          {
+            label: "Parse Errors",
+            val: s.parse_errors.toLocaleString(),
+            cls: "yellow",
+          },
+          {
+            label: "Filtered",
+            val: s.filtered_count.toLocaleString(),
+            cls: "orange",
+          },
+          {
+            label: "Throughput",
+            val: s.throughput_rps.toFixed(1) + " r/s",
+            cls: "blue",
+          },
+          {
+            label: "Elapsed",
+            val: s.elapsed_secs.toFixed(2) + "s",
+            cls: "purple",
+          },
+        ];
+        document.getElementById("stat-cards").innerHTML = cards
+          .map(
+            (c) =>
+              `<div class="stat-card ${c.cls}"><div class="val">${c.val}</div><div class="lbl">${c.label}</div></div>`,
+          )
+          .join("");
 
-  // Chart colours
-  const C = { blue:'#58a6ff', green:'#3fb950', red:'#f85149', purple:'#bc8cff', orange:'#f0883e', yellow:'#d29922'};
+        // Chart colours (light theme)
+        const C = {
+          blue: "#0969da",
+          green: "#1a7f37",
+          red: "#cf222e",
+          purple: "#8250df",
+          orange: "#bd5d00",
+          yellow: "#9a6700",
+        };
 
-  // Latency chart
-  destroyChart('latency');
-  charts.latency = new Chart(document.getElementById('chart-latency'),{
-    type:'bar',
-    data:{
-      labels:['p50','p95','p99'],
-      datasets:[{
-        label:'Latency (µs)',
-        data:[s.p50_us,s.p95_us,s.p99_us],
-        backgroundColor:[C.green+'cc',C.orange+'cc',C.red+'cc'],
-        borderColor:[C.green,C.orange,C.red],
-        borderWidth:1,borderRadius:6
-      }]
-    },
-    options:{responsive:true,plugins:{legend:{display:false}},
-      scales:{y:{grid:{color:'#30363d'},ticks:{color:'#8b949e'},
-        title:{display:true,text:'microseconds',color:'#8b949e'}},
-        x:{grid:{display:false},ticks:{color:'#8b949e'}}}}
-  });
+        // Latency chart
+        destroyChart("latency");
+        charts.latency = new Chart(document.getElementById("chart-latency"), {
+          type: "bar",
+          data: {
+            labels: ["p50", "p95", "p99"],
+            datasets: [
+              {
+                label: "Latency (µs)",
+                data: [s.p50_us, s.p95_us, s.p99_us],
+                backgroundColor: [
+                  C.green + "cc",
+                  C.orange + "cc",
+                  C.red + "cc",
+                ],
+                borderColor: [C.green, C.orange, C.red],
+                borderWidth: 1,
+                borderRadius: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                grid: { color: "#d0d7de" },
+                ticks: { color: "#57606a" },
+                title: {
+                  display: true,
+                  text: "microseconds",
+                  color: "#57606a",
+                },
+              },
+              x: { grid: { display: false }, ticks: { color: "#57606a" } },
+            },
+          },
+        });
 
-  // Status distribution
-  const statKeys = Object.keys(s.status_distribution||{}).sort();
-  const statVals = statKeys.map(k=>s.status_distribution[k]);
-  const statusColors = statKeys.map(k=>{
-    const n=parseInt(k);
-    return n<300?C.green:n<400?C.blue:n<500?C.yellow:C.red;
-  });
-  destroyChart('status');
-  charts.status = new Chart(document.getElementById('chart-status'),{
-    type:'doughnut',
-    data:{labels:statKeys.map(k=>k+' ('+s.status_distribution[k]+')'),
-      datasets:[{data:statVals,backgroundColor:statusColors.map(c=>c+'cc'),
-        borderColor:statusColors,borderWidth:1}]},
-    options:{responsive:true,plugins:{legend:{position:'bottom',
-      labels:{color:'#e6edf3',font:{size:11},boxWidth:12}}}}
-  });
+        // Status distribution
+        const statKeys = Object.keys(s.status_distribution || {}).sort();
+        const statVals = statKeys.map((k) => s.status_distribution[k]);
+        const statusColors = statKeys.map((k) => {
+          const n = parseInt(k);
+          return n < 300
+            ? C.green
+            : n < 400
+              ? C.blue
+              : n < 500
+                ? C.yellow
+                : C.red;
+        });
+        destroyChart("status");
+        charts.status = new Chart(document.getElementById("chart-status"), {
+          type: "doughnut",
+          data: {
+            labels: statKeys.map(
+              (k) => k + " (" + s.status_distribution[k] + ")",
+            ),
+            datasets: [
+              {
+                data: statVals,
+                backgroundColor: statusColors.map((c) => c + "cc"),
+                borderColor: statusColors,
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { color: "#24292f", font: { size: 11 }, boxWidth: 12 },
+              },
+            },
+          },
+        });
 
-  // Error categories
-  const errKeys = Object.keys(s.error_categories||{});
-  const errVals = errKeys.map(k=>s.error_categories[k]);
-  destroyChart('errors');
-  charts.errors = new Chart(document.getElementById('chart-errors'),{
-    type:'bar',
-    data:{labels:errKeys,
-      datasets:[{label:'Count',data:errVals,
-        backgroundColor:[C.red+'cc',C.orange+'cc',C.yellow+'cc',C.purple+'cc'],
-        borderColor:[C.red,C.orange,C.yellow,C.purple],
-        borderWidth:1,borderRadius:6}]},
-    options:{responsive:true,indexAxis:'y',
-      plugins:{legend:{display:false}},
-      scales:{x:{grid:{color:'#30363d'},ticks:{color:'#8b949e'}},
-        y:{grid:{display:false},ticks:{color:'#8b949e'}}}}
-  });
+        // Error categories
+        const errKeys = Object.keys(s.error_categories || {});
+        const errVals = errKeys.map((k) => s.error_categories[k]);
+        destroyChart("errors");
+        charts.errors = new Chart(document.getElementById("chart-errors"), {
+          type: "bar",
+          data: {
+            labels: errKeys,
+            datasets: [
+              {
+                label: "Count",
+                data: errVals,
+                backgroundColor: [
+                  C.red + "cc",
+                  C.orange + "cc",
+                  C.yellow + "cc",
+                  C.purple + "cc",
+                ],
+                borderColor: [C.red, C.orange, C.yellow, C.purple],
+                borderWidth: 1,
+                borderRadius: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            indexAxis: "y",
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { color: "#d0d7de" }, ticks: { color: "#57606a" } },
+              y: { grid: { display: false }, ticks: { color: "#57606a" } },
+            },
+          },
+        });
 
-  // Outcomes doughnut
-  destroyChart('outcomes');
-  charts.outcomes = new Chart(document.getElementById('chart-outcomes'),{
-    type:'doughnut',
-    data:{labels:['Succeeded (2xx)','Failed','Parse Errors','Filtered'],
-      datasets:[{
-        data:[s.succeeded,s.failed,s.parse_errors,s.filtered_count],
-        backgroundColor:[C.green+'cc',C.red+'cc',C.yellow+'cc',C.orange+'cc'],
-        borderColor:[C.green,C.red,C.yellow,C.orange],
-        borderWidth:1
-      }]},
-    options:{responsive:true,plugins:{legend:{position:'bottom',
-      labels:{color:'#e6edf3',font:{size:11},boxWidth:12}}}}
-  });
+        // Outcomes doughnut
+        destroyChart("outcomes");
+        charts.outcomes = new Chart(document.getElementById("chart-outcomes"), {
+          type: "doughnut",
+          data: {
+            labels: ["Succeeded (2xx)", "Failed", "Parse Errors", "Filtered"],
+            datasets: [
+              {
+                data: [s.succeeded, s.failed, s.parse_errors, s.filtered_count],
+                backgroundColor: [
+                  C.green + "cc",
+                  C.red + "cc",
+                  C.yellow + "cc",
+                  C.orange + "cc",
+                ],
+                borderColor: [C.green, C.red, C.yellow, C.orange],
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { color: "#24292f", font: { size: 11 }, boxWidth: 12 },
+              },
+            },
+          },
+        });
 
-  // Scroll to dashboard
-  document.getElementById('stats').scrollIntoView({behavior:'smooth'});
-}
+        // Scroll to dashboard
+        document.getElementById("stats").scrollIntoView({ behavior: "smooth" });
+      }
 
-// ── Load demo ──
-function loadDemo(){renderDashboard(DEMO);toast('Demo data loaded ✓');}
+      // ── Load demo ──
+      function loadDemo() {
+        renderDashboard(DEMO);
+        toast("Demo data loaded");
+      }
 
-// ── File input ──
-document.getElementById('file-input').addEventListener('change',function(e){
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=function(ev){
-    try{renderDashboard(JSON.parse(ev.target.result));toast('Loaded: '+f.name+' ✓');}
-    catch(ex){toast('Invalid JSON: '+ex.message,'err');}
-  };
-  r.readAsText(f);
-});
+      // ── File input ──
+      document
+        .getElementById("file-input")
+        .addEventListener("change", function (e) {
+          const f = e.target.files[0];
+          if (!f) return;
+          const r = new FileReader();
+          r.onload = function (ev) {
+            try {
+              renderDashboard(JSON.parse(ev.target.result));
+              toast("Loaded: " + f.name);
+            } catch (ex) {
+              toast("Invalid JSON: " + ex.message, "err");
+            }
+          };
+          r.readAsText(f);
+        });
 
-// ── Drag and drop ──
-const dz=document.getElementById('drop-zone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
-dz.addEventListener('drop',e=>{
-  e.preventDefault(); dz.classList.remove('drag');
-  const f=e.dataTransfer.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    try{renderDashboard(JSON.parse(ev.target.result));toast('Loaded: '+f.name+' ✓');}
-    catch(ex){toast('Invalid JSON: '+ex.message,'err');}
-  };
-  r.readAsText(f);
-});
+      // ── Drag and drop ──
+      const dz = document.getElementById("drop-zone");
+      dz.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dz.classList.add("drag");
+      });
+      dz.addEventListener("dragleave", () => dz.classList.remove("drag"));
+      dz.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dz.classList.remove("drag");
+        const f = e.dataTransfer.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = (ev) => {
+          try {
+            renderDashboard(JSON.parse(ev.target.result));
+            toast("Loaded: " + f.name);
+          } catch (ex) {
+            toast("Invalid JSON: " + ex.message, "err");
+          }
+        };
+        r.readAsText(f);
+      });
 
-// ── Auto-load demo on first visit if no stats yet ──
-window.addEventListener('load',()=>{
-  // Show demo data right away so the dashboard isn't empty
-  loadDemo();
-});
-</script>
-</body>
+      // ── Auto-load demo on first visit if no stats yet ──
+      window.addEventListener("load", () => {
+        // Show demo data right away so the dashboard isn't empty
+        loadDemo();
+      });
+    </script>
+  </body>
 </html>
